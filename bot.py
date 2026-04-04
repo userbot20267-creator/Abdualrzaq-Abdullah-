@@ -1,6 +1,6 @@
 """
 🤖 Telegram AI Content & Auto Publishing Bot
-الملف الرئيسي - نقطة البداية
+الملف الرئيسي - النسخة المطورة (مع حماية Try-Except للإضافات)
 """
 
 import logging
@@ -24,7 +24,7 @@ logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
 
 async def post_init(application: Application):
-    """يتم تنفيذه بعد بدء التطبيق"""
+    """يتم تنفيذه بعد بدء التطبيقون"""
     # الاتصال بقاعدة البيانات
     await db.connect()
     logger.info("✅ Database connected")
@@ -54,6 +54,13 @@ async def post_init(application: Application):
         BotCommand("stats", "📊 إحصائياتي"),
         BotCommand("settings", "⚙️ الإعدادات"),
     ]
+    
+    # إضافة أوامر المالك الجديدة لقائمة الأوامر (اختياري)
+    commands.extend([
+        BotCommand("add_forced", "👑 إضافة قناة إجبارية"),
+        BotCommand("list_forced", "📋 عرض قنوات الاشتراك")
+    ])
+
     await application.bot.set_my_commands(commands)
     logger.info("✅ Bot commands set")
 
@@ -89,19 +96,40 @@ def main():
         .build()
     )
 
-    # تسجيل جميع الـ Handlers
+    # 1. تسجيل الـ Handlers الأساسية (النظام القديم)
     register_all_handlers(application)
-    logger.info("✅ All handlers registered")
+    logger.info("✅ Core handlers registered")
+
+    # 2. محاولة تسجيل الإضافات الجديدة باستخدام try (للحماية)
+    try:
+        from handlers.bulk_quiz import register_bulk_quiz_handlers
+        register_bulk_quiz_handlers(application)
+        logger.info("✅ Bulk Quiz handlers registered")
+    except Exception as e:
+        logger.error(f"⚠️ Failed to load Bulk Quiz: {e}")
+
+    try:
+        from handlers.instant_publish import register_instant_publish_handlers
+        register_instant_publish_handlers(application)
+        logger.info("✅ Instant Publish handlers registered")
+    except Exception as e:
+        logger.error(f"⚠️ Failed to load Instant Publish: {e}")
+
+    try:
+        from handlers.admin_forced import register_admin_forced_handlers
+        register_admin_forced_handlers(application)
+        logger.info("✅ Admin Forced handlers registered")
+    except Exception as e:
+        logger.error(f"⚠️ Failed to load Admin Forced: {e}")
 
     # تشغيل البوت
     logger.info("🚀 Starting bot...")
     application.run_polling(
-        allowed_updates=[
-            "message", "callback_query", "chat_member"
-        ],
+        allowed_updates=["message", "callback_query", "chat_member"],
         drop_pending_updates=True
     )
 
 
 if __name__ == "__main__":
     main()
+    
